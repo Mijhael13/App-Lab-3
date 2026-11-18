@@ -1,9 +1,6 @@
 package com.example.app_lab_3.data.remote
 
-import com.example.app_lab_3.data.model.Post
-import com.example.app_lab_3.data.model.Message
-import com.example.app_lab_3.data.model.User
-import com.example.app_lab_3.data.model.Chat
+import com.example.app_lab_3.data.model.*
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -14,6 +11,16 @@ import retrofit2.http.Path
  */
 interface GymApiService {
     
+    // Auth
+    @POST("auth/login")
+    suspend fun login(@Body request: AuthRequest): AuthResponse
+
+    @POST("auth/register")
+    suspend fun register(@Body request: RegisterRequest): AuthResponse
+
+    @POST("auth/recover-password")
+    suspend fun recoverPassword(@Body request: Map<String, String>): Unit
+
     // Posts
     @GET("posts")
     suspend fun getPosts(): List<Post>

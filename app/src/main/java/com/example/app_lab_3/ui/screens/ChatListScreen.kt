@@ -8,22 +8,28 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.app_lab_3.data.model.Chat
-import com.example.app_lab_3.data.model.User
 import com.example.app_lab_3.ui.components.FitzoneHeader
+import com.example.app_lab_3.ui.viewmodel.GymViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
-fun ChatListScreen(onChatSelected: (Chat) -> Unit) {
-    val chats = remember {
-        mutableStateListOf(
-            Chat("1", User("u2", "Maria Garcia", "", "Entrenando duro"), "¡Nos vemos en el gym!", System.currentTimeMillis()),
-            Chat("2", User("u3", "Carlos Fit", "", "Coach personal"), "¿Cómo va esa dieta?", System.currentTimeMillis() - 3600000),
-            Chat("3", User("u4", "Entrenador Pro", "", ""), "Recuerda estirar bien hoy.", System.currentTimeMillis() - 7200000)
-        )
+fun ChatListScreen(
+    viewModel: GymViewModel,
+    onChatSelected: (Chat) -> Unit
+) {
+    val chats by viewModel.chats.collectAsState()
+    val isLoading by viewModel.isLoadingChats.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.fetchChats()
     }
 
     Column(
@@ -36,13 +42,19 @@ fun ChatListScreen(onChatSelected: (Chat) -> Unit) {
             subtitle = "Tus conversaciones"
         )
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 24.dp)
-        ) {
-            items(chats) { chat ->
-                Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)) {
-                    ChatItem(chat, onClick = { onChatSelected(chat) })
+        if (isLoading && chats.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 24.dp)
+            ) {
+                items(chats, key = { it.id }) { chat ->
+                    Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)) {
+                        ChatItem(chat, onClick = { onChatSelected(chat) })
+                    }
                 }
             }
         }
@@ -51,6 +63,11 @@ fun ChatListScreen(onChatSelected: (Chat) -> Unit) {
 
 @Composable
 fun ChatItem(chat: Chat, onClick: () -> Unit) {
+    val timeFormatted = remember(chat.lastMessageTimestamp) {
+        val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+        sdf.format(Date(chat.lastMessageTimestamp))
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -65,11 +82,19 @@ fun ChatItem(chat: Chat, onClick: () -> Unit) {
                     modifier = Modifier.size(48.dp),
                     shape = MaterialTheme.shapes.extraLarge,
                     color = MaterialTheme.colorScheme.primary
-                ) {}
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = chat.participant.username.take(1).uppercase(),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             },
             trailingContent = {
                 Text(
-                    text = "12:30",
+                    text = timeFormatted,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )

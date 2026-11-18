@@ -1,6 +1,9 @@
 *.iml
 .gradle
 /local.properties
+/backend/node_modules/
+/backend/.next/
+
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -13,3 +16,6 @@
 .externalNativeBuild
 .cxx
 local.properties
+/backend/node_modules/
+/backend/.next/
+

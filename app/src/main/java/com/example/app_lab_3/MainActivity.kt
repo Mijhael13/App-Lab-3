@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -16,35 +17,64 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.example.app_lab_3.data.model.Chat
-import com.example.app_lab_3.ui.screens.ChatListScreen
-import com.example.app_lab_3.ui.screens.ChatScreen
-import com.example.app_lab_3.ui.screens.FeedScreen
-import com.example.app_lab_3.ui.screens.CalendarScreen
-import com.example.app_lab_3.ui.screens.ProfileScreen
+import com.example.app_lab_3.data.remote.RetrofitClient
+import com.example.app_lab_3.data.repository.GymRepository
+import com.example.app_lab_3.ui.screens.*
 import com.example.app_lab_3.ui.theme.AppLab3Theme
+import com.example.app_lab_3.ui.viewmodel.GymViewModel
+import com.example.app_lab_3.ui.viewmodel.GymViewModelFactory
 
 class MainActivity : ComponentActivity() {
+
+    private val gymViewModel: GymViewModel by viewModels {
+        GymViewModelFactory(GymRepository(RetrofitClient.gymApiService))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             AppLab3Theme {
-                MainScreen()
+                MainScreen(viewModel = gymViewModel)
             }
         }
     }
 }
 
 @Composable
-fun MainScreen() {
+fun MainScreen(viewModel: GymViewModel) {
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    var authScreen by remember { mutableStateOf("login") }
+
+    if (!isLoggedIn) {
+        // Flujo de Autenticación (Login/Registro)
+        if (authScreen == "login") {
+            LoginScreen(
+                viewModel = viewModel,
+                onNavigateToRegister = { authScreen = "register" },
+                onLoginSuccess = { /* El ViewModel gestiona el estado */ }
+            )
+        } else {
+            RegisterScreen(
+                viewModel = viewModel,
+                onNavigateToLogin = { authScreen = "login" },
+                onRegisterSuccess = { /* El ViewModel gestiona el estado */ }
+            )
+        }
+    } else {
+        // App principal una vez logueado
+        FitzoneApp(viewModel = viewModel)
+    }
+}
+
+@Composable
+fun FitzoneApp(viewModel: GymViewModel) {
     var selectedItem by remember { mutableIntStateOf(0) }
     val items = listOf("Inicio", "Mensajes", "Calendario", "Perfil")
     val icons = listOf(Icons.Filled.Home, Icons.Filled.Email, Icons.Filled.CheckCircle, Icons.Filled.Person)
 
-    // Estado para manejar qué chat está abierto actualmente
     var activeChat by remember { mutableStateOf<Chat?>(null) }
 
-    // Intercepta el botón de "Atrás" del sistema si estamos dentro de un chat
     if (activeChat != null && selectedItem == 1) {
         BackHandler {
             activeChat = null
@@ -54,7 +84,6 @@ fun MainScreen() {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            // Ocultamos la barra de navegación al entrar a un chat para más inmersión
             if (activeChat == null) {
                 NavigationBar {
                     items.forEachIndexed { index, item ->
@@ -64,7 +93,6 @@ fun MainScreen() {
                             selected = selectedItem == index,
                             onClick = {
                                 selectedItem = index
-                                // Al cambiar de pestaña, cerramos cualquier chat abierto
                                 if (index != 1) activeChat = null
                             }
                         )
@@ -78,23 +106,25 @@ fun MainScreen() {
             color = MaterialTheme.colorScheme.background
         ) {
             when (selectedItem) {
-                0 -> FeedScreen()
+                0 -> FeedScreen(viewModel = viewModel)
                 1 -> {
                     if (activeChat == null) {
-                        // Mostramos la lista de todas las conversaciones (diferentes personas)
-                        ChatListScreen(onChatSelected = { chat ->
-                            activeChat = chat
-                        })
+                        ChatListScreen(
+                            viewModel = viewModel,
+                            onChatSelected = { chat ->
+                                activeChat = chat
+                            }
+                        )
                     } else {
-                        // Mostramos la conversación específica seleccionada
                         ChatScreen(
                             chat = activeChat!!,
+                            viewModel = viewModel,
                             onBack = { activeChat = null }
                         )
                     }
                 }
                 2 -> CalendarScreen()
-                3 -> ProfileScreen()
+                3 -> ProfileScreen(viewModel = viewModel)
             }
         }
     }
